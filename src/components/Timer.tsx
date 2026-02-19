@@ -70,14 +70,14 @@ export function Timer({
 
   // Update page title with timer
   useEffect(() => {
-    const originalTitle = document.title;
+    const defaultTitle = 'FocusFlow | Focus Timer, Pomodoro Timer, and Study Planner';
     if (isRunning) {
-      document.title = `${formattedTime()} - ${mode === 'focus' ? 'Focus' : 'Break'}`;
+      document.title = `${formattedTime()} - ${mode === 'focus' ? 'Focus' : 'Break'} Timer | FocusFlow`;
     } else {
-      document.title = originalTitle;
+      document.title = defaultTitle;
     }
     return () => {
-      document.title = originalTitle;
+      document.title = defaultTitle;
     };
   }, [isRunning, formattedTime, mode, timeRemaining]);
 

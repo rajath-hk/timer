@@ -341,6 +341,16 @@ function App() {
           focusMode && 'pt-8'
         )}>
           <div className="max-w-6xl mx-auto">
+            {!focusMode && (
+              <header className="mb-6 text-center">
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+                  Focus Timer and Pomodoro Study App
+                </h1>
+                <p className="mt-2 text-sm md:text-base text-muted-foreground">
+                  Build better focus habits with timed sessions, breaks, tasks, and productivity stats.
+                </p>
+              </header>
+            )}
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
