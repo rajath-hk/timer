@@ -44,26 +44,6 @@ export function Navigation({
 }: NavigationProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
-
-  const BrandLogo = () => {
-    if (logoLoadFailed) {
-      return (
-        <div className="w-8 h-8 bg-gradient-to-br from-[#4062ff] to-[#6b8cff] rounded-lg flex items-center justify-center">
-          <Clock className="w-5 h-5 text-white" />
-        </div>
-      );
-    }
-
-    return (
-      <img
-        src="/logo.png"
-        alt="FocusFlow logo"
-        className="w-8 h-8 rounded-lg object-contain"
-        onError={() => setLogoLoadFailed(true)}
-      />
-    );
-  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -116,7 +96,9 @@ export function Navigation({
           <div className="flex items-center justify-between h-12">
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <BrandLogo />
+              <div className="w-8 h-8 bg-gradient-to-br from-[#4062ff] to-[#6b8cff] rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-white" />
+              </div>
               <span className="font-bold text-lg hidden lg:block">FocusFlow</span>
             </div>
 
@@ -184,7 +166,9 @@ export function Navigation({
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-2 px-2">
-              <BrandLogo />
+              <div className="w-8 h-8 bg-gradient-to-br from-[#4062ff] to-[#6b8cff] rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-white" />
+              </div>
               <span className="font-bold">FocusFlow</span>
             </div>
 
