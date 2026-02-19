@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Quote, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -45,18 +45,18 @@ export function Quotes({ enabled = true, className }: QuotesProps) {
   const [currentQuote, setCurrentQuote] = useState(quotes[0]);
   const [isVisible, setIsVisible] = useState(true);
 
-  const getRandomQuote = () => {
+  const getRandomQuote = useCallback(() => {
     const randomIndex = Math.floor(Math.random() * quotes.length);
     return quotes[randomIndex];
-  };
+  }, []);
 
-  const refreshQuote = () => {
+  const refreshQuote = useCallback(() => {
     setIsVisible(false);
     setTimeout(() => {
       setCurrentQuote(getRandomQuote());
       setIsVisible(true);
     }, 300);
-  };
+  }, [getRandomQuote]);
 
   // Auto-rotate quotes every 5 minutes
   useEffect(() => {
@@ -67,7 +67,7 @@ export function Quotes({ enabled = true, className }: QuotesProps) {
     }, 300000); // 5 minutes
 
     return () => clearInterval(interval);
-  }, [enabled]);
+  }, [enabled, refreshQuote]);
 
   if (!enabled) return null;
 

@@ -35,7 +35,7 @@ export function useNotifications() {
   useEffect(() => {
     audioRef.current = new Audio();
     audioRef.current.volume = settings.soundVolume;
-  }, []);
+  }, [settings.soundVolume]);
 
   // Update volume when settings change
   useEffect(() => {
