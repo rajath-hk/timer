@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { Toaster, toast } from 'sonner';
@@ -26,6 +26,7 @@ type Tab = 'timer' | 'tasks' | 'stats' | 'calendar' | 'settings';
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('timer');
   const [focusMode, setFocusMode] = useState(false);
+  const handledCompletionSignalRef = useRef(0);
 
   // Hooks
   const timer = useTimer();
@@ -75,20 +76,22 @@ function App() {
   // Notify when a timer cycle completes
   useEffect(() => {
     if (timer.completionSignal === 0 || !timer.lastCompletedMode) return;
+    if (timer.completionSignal === handledCompletionSignalRef.current) return;
+    handledCompletionSignalRef.current = timer.completionSignal;
 
     notifications.notifyTimerComplete(timer.lastCompletedMode);
 
     // If focus session completed, increment task focus time
     if (timer.lastCompletedMode === 'focus' && timer.activeTaskId) {
-        tasks.incrementFocusTime(timer.activeTaskId, timer.settings.focusDuration);
+      tasks.incrementFocusTime(timer.activeTaskId, timer.settings.focusDuration);
     }
   }, [
     timer.completionSignal,
     timer.lastCompletedMode,
     timer.activeTaskId,
     timer.settings.focusDuration,
-    notifications,
-    tasks,
+    notifications.notifyTimerComplete,
+    tasks.incrementFocusTime,
   ]);
 
   // Handle data import
