@@ -4,6 +4,78 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==============================
+   Theme Transition System
+   ============================== */
+
+/* Smooth transition on ALL theme-aware properties */
+:root {
+  --theme-transition-duration: 0.45s;
+  --theme-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Apply transitions to all theme-dependent elements */
+*, *::before, *::after {
+  transition:
+    background-color var(--theme-transition-duration) var(--theme-transition-easing),
+    border-color var(--theme-transition-duration) var(--theme-transition-easing),
+    color var(--theme-transition-duration) var(--theme-transition-easing),
+    fill var(--theme-transition-duration) var(--theme-transition-easing),
+    stroke var(--theme-transition-duration) var(--theme-transition-easing),
+    box-shadow var(--theme-transition-duration) var(--theme-transition-easing),
+    opacity var(--theme-transition-duration) var(--theme-transition-easing);
+}
+
+/* Disable transitions when reduce-motion is active */
+.reduce-motion, .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+/* Theme transition overlay effect */
+.theme-transitioning::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--theme-x, 50%) var(--theme-y, 50%),
+    transparent 0%,
+    rgba(0, 0, 0, 0.06) 40%,
+    transparent 70%
+  );
+  animation: theme-ripple 0.6s ease-out forwards;
+}
+
+.dark .theme-transitioning::before {
+  background: radial-gradient(
+    circle at var(--theme-x, 50%) var(--theme-y, 50%),
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 40%,
+    transparent 70%
+  );
+}
+
+@keyframes theme-ripple {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.5);
+  }
+}
+
+/* ==============================
+   Base Theme Variables
+   ============================== */
+
 @layer base {
   :root {
     --background: 220 43% 98%;
@@ -12,25 +84,25 @@
     --card-foreground: 224 33% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 33% 12%;
-    --primary: 227 100% 63%;
+    --primary: var(--accent-hue, 227) 100% 63%;
     --primary-foreground: 0 0% 100%;
     --secondary: 225 74% 95%;
     --secondary-foreground: 224 33% 12%;
     --muted: 225 40% 94%;
     --muted-foreground: 224 14% 34%;
-    --accent: 225 73% 92%;
-    --accent-foreground: 227 68% 40%;
+    --accent: var(--accent-hue, 227) 73% 92%;
+    --accent-foreground: var(--accent-hue, 227) 68% 40%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --border: 225 31% 84%;
     --input: 225 31% 84%;
-    --ring: 227 100% 63%;
+    --ring: var(--accent-hue, 227) 100% 63%;
     --radius: 0.625rem;
     
     /* Custom colors */
-    --focus-blue: 227 100% 63%;
-    --focus-blue-light: 227 100% 77%;
-    --focus-lavender: 227 100% 95%;
+    --focus-blue: var(--accent-hue, 227) 100% 63%;
+    --focus-blue-light: var(--accent-hue, 227) 100% 77%;
+    --focus-lavender: var(--accent-hue, 227) 100% 95%;
   }
 
   .dark {
@@ -40,19 +112,19 @@
     --card-foreground: 210 30% 97%;
     --popover: 224 26% 12%;
     --popover-foreground: 210 30% 97%;
-    --primary: 227 100% 63%;
+    --primary: var(--accent-hue, 227) 100% 63%;
     --primary-foreground: 0 0% 100%;
     --secondary: 224 18% 18%;
     --secondary-foreground: 210 30% 97%;
     --muted: 224 16% 18%;
     --muted-foreground: 218 14% 74%;
-    --accent: 227 60% 24%;
+    --accent: var(--accent-hue, 227) 60% 24%;
     --accent-foreground: 210 30% 97%;
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
     --border: 224 15% 25%;
     --input: 224 15% 25%;
-    --ring: 227 100% 63%;
+    --ring: var(--accent-hue, 227) 100% 63%;
   }
 }
 
@@ -215,13 +287,7 @@
     0% { background-position: 150% 0; }
     100% { background-position: -50% 0; }
   }
-  
-  /* Reduced motion */
-  .reduce-motion * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+
   
   /* High contrast mode */
   .high-contrast {

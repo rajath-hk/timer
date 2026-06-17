@@ -12,7 +12,9 @@ import {
   Contrast,
   Zap,
   Save,
-  Trash2
+  Trash2,
+  Palette,
+  Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +24,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { TimerSettings, TimerPreset, Theme, FontSize } from '@/types';
+import type { TimerSettings, TimerPreset, Theme, FontSize, AccentColor } from '@/types';
+import { presetAccentColors } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface SettingsProps {
@@ -40,6 +43,7 @@ interface SettingsProps {
     fontSize: FontSize;
     highContrast: boolean;
     reduceMotion: boolean;
+    accentColor: string;
   };
   soundUrls: string[];
   onUpdateTimerSettings: (settings: Partial<TimerSettings>) => void;
@@ -47,7 +51,7 @@ interface SettingsProps {
   onDeletePreset: (id: string) => void;
   onApplyPreset: (preset: TimerPreset) => void;
   onUpdateNotificationSettings: (settings: Partial<{ soundEnabled: boolean; soundVolume: number; notificationEnabled: boolean; selectedSound: string; vibrationEnabled: boolean }>) => void;
-  onUpdateThemeSettings: (settings: Partial<{ theme: Theme; fontSize: FontSize; highContrast: boolean; reduceMotion: boolean }>) => void;
+  onUpdateThemeSettings: (settings: Partial<{ theme: Theme; fontSize: FontSize; highContrast: boolean; reduceMotion: boolean; accentColor: string }>) => void;
   onTestNotification: () => void;
   onClearAllData: () => void;
 }
@@ -382,6 +386,47 @@ export function Settings({
                       <span className="text-sm capitalize">{theme}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Accent Color */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Palette className="w-4 h-4" />
+                  Accent Color
+                </Label>
+                <div className="grid grid-cols-5 gap-2">
+                  {presetAccentColors.map((accent) => {
+                    const isActive = themeSettings.accentColor === accent.hsl || 
+                      (!themeSettings.accentColor && accent.hsl === '227');
+                    return (
+                      <button
+                        key={accent.hsl}
+                        onClick={() => onUpdateThemeSettings({ accentColor: accent.hsl })}
+                        className={cn(
+                          'relative flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all duration-200',
+                          isActive
+                            ? 'border-foreground shadow-lg scale-105'
+                            : 'border-transparent hover:border-border/60 hover:scale-105'
+                        )}
+                        title={accent.description}
+                      >
+                        <div
+                          className="w-7 h-7 rounded-full shadow-sm ring-1 ring-black/10"
+                          style={{ backgroundColor: accent.color }}
+                        >
+                          {isActive && (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Check className="w-4 h-4 text-white drop-shadow-sm" />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground truncate max-w-full">
+                          {accent.name}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

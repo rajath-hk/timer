@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
 import { Toaster, toast } from 'sonner';
 
 import { Navigation } from '@/components/Navigation';
@@ -11,14 +10,19 @@ import { Calendar } from '@/components/Calendar';
 import { Settings } from '@/components/Settings';
 import { Quotes } from '@/components/Quotes';
 import { BreakActivities } from '@/components/BreakActivities';
+import { AmbientSound } from '@/components/AmbientSound';
+import { DistractionLogger } from '@/components/DistractionLogger';
+import { SessionNotes } from '@/components/SessionNotes';
 
 import { useTimer } from '@/hooks/useTimer';
 import { useTasks } from '@/hooks/useTasks';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useStatistics } from '@/hooks/useStatistics';
 import { useTheme } from '@/hooks/useTheme';
+import { useAmbientSound } from '@/hooks/useAmbientSound';
 import { useTimerShortcuts, useAppShortcuts } from '@/hooks/useKeyboardShortcuts';
 
+import { triggerSessionCompleteCelebration, triggerAchievementCelebration } from '@/lib/celebration';
 import { cn } from '@/lib/utils';
 
 type Tab = 'timer' | 'tasks' | 'stats' | 'calendar' | 'settings';
@@ -26,6 +30,7 @@ type Tab = 'timer' | 'tasks' | 'stats' | 'calendar' | 'settings';
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('timer');
   const [focusMode, setFocusMode] = useState(false);
+  const [showSessionNotes, setShowSessionNotes] = useState(false);
   const handledCompletionSignalRef = useRef(0);
 
   // Hooks
@@ -34,6 +39,7 @@ function App() {
   const notifications = useNotifications();
   const stats = useStatistics(timer.sessions, tasks.tasks);
   const theme = useTheme();
+  const ambient = useAmbientSound();
 
   // Keyboard shortcuts
   useTimerShortcuts(
@@ -54,22 +60,15 @@ function App() {
   // Check achievements when stats change
   useEffect(() => {
     const newAchievements = stats.checkAchievements();
-    newAchievements.forEach(() => {
+    newAchievements.forEach((achievement) => {
       toast.success(
         <div className="flex flex-col">
-          <span className="font-semibold">Achievement Unlocked!</span>
-          <span className="text-sm">Keep up the great work!</span>
+          <span className="font-semibold">{achievement.icon} Achievement Unlocked!</span>
+          <span className="text-sm">{achievement.name}</span>
         </div>,
         { duration: 5000 }
       );
-      
-      // Trigger confetti
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#4062ff', '#6b8cff', '#c8d1ff', '#e4e9ff'],
-      });
+      triggerAchievementCelebration();
     });
   }, [timer.totalSessions, stats]);
 
@@ -80,6 +79,14 @@ function App() {
     handledCompletionSignalRef.current = timer.completionSignal;
 
     notifications.notifyTimerComplete(timer.lastCompletedMode);
+
+    // Trigger celebration
+    triggerSessionCompleteCelebration(timer.lastCompletedMode);
+
+    // If focus session completed, show session notes modal
+    if (timer.lastCompletedMode === 'focus') {
+      setShowSessionNotes(true);
+    }
 
     // If focus session completed, increment task focus time
     if (timer.lastCompletedMode === 'focus' && timer.activeTaskId) {
@@ -93,6 +100,20 @@ function App() {
     notifications.notifyTimerComplete,
     tasks.incrementFocusTime,
   ]);
+
+  // Handle saving session notes
+  const handleSaveSessionNotes = useCallback((notes: string) => {
+    timer.addSessionNotes(timer.lastSessionId, notes);
+    setShowSessionNotes(false);
+    if (notes.trim()) {
+      toast.success('Session notes saved!', { duration: 3000 });
+    }
+  }, [timer]);
+
+  // Handle dismissing session notes
+  const handleDismissSessionNotes = useCallback(() => {
+    setShowSessionNotes(false);
+  }, []);
 
   // Handle data import
   const handleImport = useCallback((jsonString: string) => {
@@ -144,6 +165,38 @@ function App() {
               />
             </motion.div>
 
+            {/* Ambient Sound Player (during focus) */}
+            {timer.mode === 'focus' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <AmbientSound
+                  activeSoundId={ambient.activeSoundId}
+                  isPlaying={ambient.isPlaying}
+                  volume={ambient.volume}
+                  onToggleSound={ambient.toggleSound}
+                  onVolumeChange={ambient.updateVolume}
+                />
+              </motion.div>
+            )}
+
+            {/* Distraction Logger (during focus) */}
+            {timer.mode === 'focus' && (timer.status === 'running' || timer.status === 'paused') && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="max-w-md mx-auto"
+              >
+                <DistractionLogger
+                  onLogDistraction={timer.logDistraction}
+                  distractions={timer.currentDistractions}
+                />
+              </motion.div>
+            )}
+
             {/* Break Activities (shown during breaks) */}
             {timer.mode !== 'focus' && (
               <motion.div
@@ -181,12 +234,19 @@ function App() {
                 {timer.activeTaskId ? (
                   <div className="flex items-center justify-between p-3 bg-[#4062ff]/10 rounded-lg border border-[#4062ff]/30">
                     <span className="font-medium">{timer.activeTaskTitle}</span>
-                    <button
-                      onClick={() => timer.setActiveTask(undefined, undefined)}
-                      className="text-sm text-muted-foreground hover:text-foreground"
-                    >
-                      Clear
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {timer.currentDistractions.length > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {timer.currentDistractions.length} distraction{timer.currentDistractions.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => timer.setActiveTask(undefined, undefined)}
+                        className="text-sm text-muted-foreground hover:text-foreground"
+                      >
+                        Clear
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center text-muted-foreground text-sm">
@@ -276,6 +336,7 @@ function App() {
                 fontSize: theme.fontSize,
                 highContrast: theme.highContrast,
                 reduceMotion: theme.reduceMotion,
+                accentColor: theme.accentColor,
               }}
               soundUrls={notifications.soundUrls}
               onUpdateTimerSettings={timer.updateSettings}
@@ -384,6 +445,15 @@ function App() {
           </footer>
         )}
       </div>
+
+      {/* Session Notes Modal */}
+      <SessionNotes
+        isOpen={showSessionNotes}
+        sessionDuration={timer.settings.focusDuration}
+        sessionTask={timer.activeTaskTitle}
+        onSave={handleSaveSessionNotes}
+        onDismiss={handleDismissSessionNotes}
+      />
     </div>
   );
 }

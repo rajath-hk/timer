@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Plus, 
   Pin, 
@@ -8,7 +8,10 @@ import {
   ChevronRight,
   Clock,
   MoreHorizontal,
-  Repeat
+  Repeat,
+  Search,
+  Filter,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,6 +64,11 @@ export function TaskList({
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterPriority, setFilterPriority] = useState<TaskPriority | 'all'>('all');
+  const [filterTag, setFilterTag] = useState<string>('all');
   
   // New task form state
   const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('medium');
@@ -199,30 +207,93 @@ export function TaskList({
       )}
 
       {/* Active tasks */}
+      {/* Search & Filter Bar */}
+      <div className="flex gap-2 mb-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 h-8 text-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <Select
+          value={filterPriority}
+          onValueChange={(v) => setFilterPriority(v as TaskPriority | 'all')}
+        >
+          <SelectTrigger className="w-[110px] h-8 text-xs">
+            <Filter className="w-3 h-3 mr-1" />
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Filtered active tasks */}
       <div className="space-y-2 mb-4">
         <AnimatePresence>
-          {activeTasks.filter(t => !t.pinned).map((task) => (
-            <motion.div
-              key={task.id}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.2 }}
+          {activeTasks
+            .filter(t => !t.pinned)
+            .filter(t => {
+              const matchesSearch = !searchQuery || 
+                t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                t.description?.toLowerCase().includes(searchQuery.toLowerCase());
+              const matchesPriority = filterPriority === 'all' || t.priority === filterPriority;
+              return matchesSearch && matchesPriority;
+            })
+            .map((task) => (
+              <motion.div
+                key={task.id}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -100 }}
+                transition={{ duration: 0.2 }}
+              >
+                <TaskItem
+                  task={task}
+                  isExpanded={expandedTask === task.id}
+                  isActive={activeTaskId === task.id}
+                  onToggleExpand={() => toggleExpand(task.id)}
+                  onToggleComplete={() => onToggleComplete(task.id)}
+                  onTogglePin={() => onTogglePin(task.id)}
+                  onDelete={() => onDeleteTask(task.id)}
+                  onSetActive={() => onSetActiveTask(task.id, task.title)}
+                  onAddSubtask={(title) => onAddSubtask(task.id, title)}
+                  onToggleSubtask={(subtaskId) => onToggleSubtask(task.id, subtaskId)}
+                />
+              </motion.div>
+            ))}
+          
+          {/* No results state */}
+          {activeTasks.filter(t => !t.pinned).filter(t => {
+            const matchesSearch = !searchQuery || 
+              t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              t.description?.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesPriority = filterPriority === 'all' || t.priority === filterPriority;
+            return matchesSearch && matchesPriority;
+          }).length === 0 && (searchQuery || filterPriority !== 'all') && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center text-sm text-muted-foreground py-8"
             >
-              <TaskItem
-                task={task}
-                isExpanded={expandedTask === task.id}
-                isActive={activeTaskId === task.id}
-                onToggleExpand={() => toggleExpand(task.id)}
-                onToggleComplete={() => onToggleComplete(task.id)}
-                onTogglePin={() => onTogglePin(task.id)}
-                onDelete={() => onDeleteTask(task.id)}
-                onSetActive={() => onSetActiveTask(task.id, task.title)}
-                onAddSubtask={(title) => onAddSubtask(task.id, title)}
-                onToggleSubtask={(subtaskId) => onToggleSubtask(task.id, subtaskId)}
-              />
-            </motion.div>
-          ))}
+              No tasks match your search
+            </motion.p>
+          )}
         </AnimatePresence>
       </div>
 

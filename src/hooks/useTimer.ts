@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { TimerMode, TimerStatus, TimerSettings, TimerPreset, FocusSession } from '@/types';
+import type { TimerMode, TimerStatus, TimerSettings, TimerPreset, FocusSession, Distraction } from '@/types';
 import { useLocalStorage } from './useLocalStorage';
 
 const defaultSettings: TimerSettings = {
@@ -32,6 +32,8 @@ export function useTimer() {
   const [activeTaskTitle, setActiveTaskTitle] = useState<string | undefined>();
   const [completionSignal, setCompletionSignal] = useState(0);
   const [lastCompletedMode, setLastCompletedMode] = useState<TimerMode | null>(null);
+  const [lastSessionId, setLastSessionId] = useState<string | null>(null);
+  const [currentDistractions, setCurrentDistractions] = useState<Distraction[]>([]);
   
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionStartRef = useRef<Date | null>(null);
@@ -117,8 +119,9 @@ export function useTimer() {
 
     // Save session if it was a focus session
     if (completedMode === 'focus' && sessionStartRef.current) {
+      const sessionId = Date.now().toString();
       const session: FocusSession = {
-        id: Date.now().toString(),
+        id: sessionId,
         taskId: activeTaskId,
         taskTitle: activeTaskTitle,
         startTime: sessionStartRef.current.toISOString(),
@@ -126,10 +129,13 @@ export function useTimer() {
         duration: getDurationForMode('focus') / 60,
         mode: 'focus',
         completed: true,
+        distractions: currentDistractions.length > 0 ? [...currentDistractions] : undefined,
       };
       setSessions(prev => [session, ...prev]);
       setTotalSessions(prev => prev + 1);
+      setLastSessionId(sessionId);
       sessionStartRef.current = null;
+      setCurrentDistractions([]);
     }
 
     // Determine next mode
@@ -219,6 +225,24 @@ export function useTimer() {
     resetTimer();
   }, [updateSettings, resetTimer]);
 
+  // Log a distraction for the current session
+  const logDistraction = useCallback((distraction: Omit<Distraction, 'id' | 'timestamp'>) => {
+    const newDistraction: Distraction = {
+      ...distraction,
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+    };
+    setCurrentDistractions(prev => [...prev, newDistraction]);
+  }, []);
+
+  // Add notes to the last completed session
+  const addSessionNotes = useCallback((sessionId: string | null, notes: string) => {
+    if (!sessionId) return;
+    setSessions(prev => prev.map(s => 
+      s.id === sessionId ? { ...s, notes } : s
+    ));
+  }, [setSessions]);
+
   // Set active task
   const setActiveTask = useCallback((taskId: string | undefined, taskTitle: string | undefined) => {
     setActiveTaskId(taskId);
@@ -252,6 +276,8 @@ export function useTimer() {
     activeTaskTitle,
     completionSignal,
     lastCompletedMode,
+    lastSessionId,
+    currentDistractions,
     
     // Actions
     startTimer,
@@ -260,6 +286,8 @@ export function useTimer() {
     skipTimer,
     resetTimer,
     switchMode,
+    logDistraction,
+    addSessionNotes,
     updateSettings,
     addPreset,
     deletePreset,

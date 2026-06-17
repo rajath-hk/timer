@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Play, Pause, Square, SkipForward, RotateCcw, Coffee, Brain, Sun } from 'lucide-react';
+import { useEffect, useRef, useCallback } from 'react';
+import { Play, Pause, Square, SkipForward, RotateCcw, Coffee, Brain, Sun, Timer as TimerIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { TimerMode, TimerStatus } from '@/types';
 import { cn } from '@/lib/utils';
@@ -68,6 +68,48 @@ export function Timer({
   const circumference = 2 * Math.PI * 120;
   const strokeDashoffset = circumference - (progressValue / 100) * circumference;
 
+  // Countdown warning — last 10 seconds
+  const isCountdownWarning = isRunning && timeRemaining <= 10 && timeRemaining > 0;
+  const secondsRemaining = timeRemaining;
+  const countdownAudioRef = useRef<AudioContext | null>(null);
+
+  // Play a countdown beep in the final seconds
+  const playCountdownBeep = useCallback(() => {
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    if (!countdownAudioRef.current) {
+      countdownAudioRef.current = new AudioContextClass();
+    }
+    const ctx = countdownAudioRef.current;
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  }, []);
+
+  // Trigger countdown beep each second in the final 10
+  const prevSecondRef = useRef(timeRemaining);
+  useEffect(() => {
+    if (isCountdownWarning && timeRemaining !== prevSecondRef.current) {
+      prevSecondRef.current = timeRemaining;
+      playCountdownBeep();
+    }
+    if (!isCountdownWarning) {
+      prevSecondRef.current = timeRemaining;
+    }
+  }, [timeRemaining, isCountdownWarning, playCountdownBeep]);
+
   // Update page title with timer
   useEffect(() => {
     const defaultTitle = 'FocusFlow | Focus Timer, Pomodoro Timer, and Study Planner';
@@ -106,19 +148,37 @@ export function Timer({
         {/* Outer glow */}
         <motion.div
           className={cn(
-            'absolute inset-0 rounded-full blur-3xl opacity-20',
+            'absolute inset-0 rounded-full blur-3xl',
+            isCountdownWarning ? 'opacity-45' : 'opacity-20',
             mode === 'focus' ? 'bg-[#4062ff]' : mode === 'shortBreak' ? 'bg-emerald-500' : 'bg-amber-500'
           )}
           animate={{
-            scale: isRunning ? [1, 1.1, 1] : 1,
-            opacity: isRunning ? [0.2, 0.3, 0.2] : 0.2,
+            scale: isCountdownWarning ? [1, 1.15, 1] : isRunning ? [1, 1.1, 1] : 1,
+            opacity: isCountdownWarning ? [0.45, 0.65, 0.45] : isRunning ? [0.2, 0.3, 0.2] : 0.2,
           }}
           transition={{
-            duration: 4,
+            duration: isCountdownWarning ? 0.5 : 4,
             repeat: Infinity,
             ease: 'easeInOut',
           }}
         />
+
+        {/* Final 10-second countdown ring pulse */}
+        {isCountdownWarning && (
+          <motion.div
+            className={cn(
+              'absolute inset-0 rounded-full',
+              mode === 'focus' ? 'border-[#ff4444]' : mode === 'shortBreak' ? 'border-[#ff4444]' : 'border-[#ff4444]'
+            )}
+            initial={{ opacity: 0, scale: 1 }}
+            animate={{ opacity: [0, 0.3, 0], scale: [1, 1.08, 1] }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'easeOut' }}
+            style={{
+              borderWidth: 3,
+              borderStyle: 'solid',
+            }}
+          />
+        )}
 
         {/* SVG Circle */}
         <svg className="w-72 h-72 transform -rotate-90">
@@ -170,9 +230,18 @@ export function Timer({
           </AnimatePresence>
           
           <motion.div
-            className="text-6xl font-bold tracking-tight font-['Space_Grotesk']"
-            animate={{ scale: isRunning ? [1, 1.02, 1] : 1 }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            className={cn(
+              'text-6xl font-bold tracking-tight font-["Space_Grotesk"]',
+              isCountdownWarning && 'text-[#ff4444]'
+            )}
+            animate={{
+              scale: isCountdownWarning ? [1, 1.1, 1] : isRunning ? [1, 1.02, 1] : 1,
+            }}
+            transition={{
+              duration: isCountdownWarning ? 0.5 : 2,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
           >
             {formattedTime()}
           </motion.div>
@@ -211,6 +280,19 @@ export function Timer({
           {currentCycle}/{cyclesBeforeLongBreak}
         </span>
       </div>
+
+      {/* Countdown warning indicator */}
+      {isCountdownWarning && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 mb-4 px-4 py-2 rounded-full bg-[#ff4444]/10 border border-[#ff4444]/30 text-[#ff4444]"
+        >
+          <TimerIcon className="w-4 h-4 animate-pulse" />
+          <span className="text-sm font-semibold">Almost done!</span>
+          <span className="text-sm ml-auto font-bold">{secondsRemaining}s</span>
+        </motion.div>
+      )}
 
       {/* Controls */}
       <div className="flex items-center gap-3">
